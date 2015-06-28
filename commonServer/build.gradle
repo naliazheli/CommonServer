@@ -1,16 +1,50 @@
-apply plugin: 'java'
-apply plugin: 'eclipse'
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'org.hidetake:gradle-ssh-plugin:1.1.2'
+  }
+}
 
-sourceCompatibility = 1.5
-version = '1.0'
-jar {
-    manifest {
-        attributes 'Implementation-Title': 'Gradle Quickstart',
-                   'Implementation-Version': version
+apply plugin: 'org.hidetake.ssh'
+apply plugin: 'jetty'
+apply plugin: 'war'
+group = 'gradle'
+version = '1.1'
+
+remotes {
+  webServer {
+    host = '182.92.170.109'
+    user = 'root'
+    password = 'naliaTTL0316'
+    knownHosts = allowAnyHosts  //A known hosts file. Defaults to ~/.ssh/known_hosts. If allowAnyHosts is set, strict host key checking is turned off (only for testing purpose).
+  }
+}
+
+
+// NEED REWRITE RM & PUT
+task deploy(dependsOn: war) << {
+  ssh.run {
+  settings {
+      // overrides global settings
+      pty = true
     }
+    session(remotes.webServer) {
+      execute "/root/ttl/soft/apache-tomcat-8.0.21/bin/shutdown.sh" , ignoreError: true   //The method throws an exception if an exit status of the command was not zero. It can be ignored if the ignoreError
+     execute "rm -rf /root/ttl/soft/apache-tomcat-8.0.21/webapps/customized*"
+      put from: 'E:\\tools\\gradle-2.3\\samples\\webApplication\\customized\\build\\libs\\*.war', into: '/root/ttl/soft/apache-tomcat-8.0.21/webapps'
+     execute ('/root/ttl/soft/apache-tomcat-8.0.21/bin/startup.sh')
+    }
+  }
+}
+
+configurations {
+   moreLibs
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -18,16 +52,42 @@ dependencies {
     compile 'org.springframework:spring-context:4.1.6.RELEASE' 
     compile group: 'commons-collections', name: 'commons-collections', version: '3.2'
     testCompile group: 'junit', name: 'junit', version: '4.+'
+    
+    
+ //   compile module(":compile:1.0") {
+  //      dependency ":compile-transitive-1.0@jar"
+  //      dependency ":providedCompile-transitive:1.0@jar"
+  //  }
+    providedCompile "javax.servlet:servlet-api:2.5"
+ //   providedCompile module(":providedCompile:1.0") {
+ //       dependency ":providedCompile-transitive:1.0@jar"
+  //  }
+   // runtime ":runtime:1.0"
+   // providedRuntime ":providedRuntime:1.0@jar"
 }
 
 test {
     systemProperties 'property': 'value'
 }
 
-uploadArchives {
-    repositories {
-       flatDir {
-           dirs 'repos'
-       }
-    }
+
+
+
+war {
+    from 'src/rootContent' // adds a file-set to the root of the archive
+    webInf { from 'src/additionalWebInf' } // adds a file-set to the WEB-INF dir.
+    classpath fileTree('additionalLibs') // adds a file-set to the WEB-INF/lib dir.
+    classpath configurations.moreLibs // adds a configuration to the WEB-INF/lib dir.
+   webXml = file('src/config/someWeb.xml') // copies a file to WEB-INF/web.xml
+   //webXml = file('src/main/webapp/WEB-INF/webapp.xml')
+   
+   
+ 
+}
+
+task taskX(dependsOn: 'taskY') << {
+    println 'taskX'
+}
+task taskY << {
+    println 'taskY'
 }
